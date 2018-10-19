@@ -62,11 +62,11 @@ namespace sjadam {
     /**
      * Add all connections jumping over this square
      * @param square the square being jumped over
-     * @param board the bit board of the color of the piece
+     * @param complete_board the bit board of all the pieces
      * @param nodes the nodes of the graph to add the connections to
      */
     void add_connections_over(const lczero::BoardSquare &square,
-                              const lczero::BitBoard &board,
+                              const lczero::BitBoard &complete_board,
                               std::array<Node, 64> &nodes) {
         for (const auto& direction : some_directions) {
             const int s1_row = square.row() + direction.first;
@@ -77,20 +77,8 @@ namespace sjadam {
             if (!lczero::BoardSquare::IsValid(s2_row, s2_col)) continue;
             const std::uint8_t s1 = lczero::BoardSquare(s1_row, s1_col).as_int();
             const std::uint8_t s2 = lczero::BoardSquare(s2_row, s2_col).as_int();
-            if (!board.get(s2)) nodes[s1].connect(nodes[s2]);
-            if (!board.get(s1)) nodes[s2].connect(nodes[s1]);
-        }
-    }
-
-    /**
-     * Initialize the graph connections of all possible jumps on this board
-     * @param board the bit board of the pieces of this color
-     * @param nodes the nodes of the graph of this color
-     */
-    void init_graph(const lczero::BitBoard& board,
-                    std::array<Node, 64>& nodes) {
-        for (lczero::BoardSquare square : board) {
-            add_connections_over(square, board, nodes);
+            if (!complete_board.get(s2)) nodes[s1].connect(nodes[s2]);
+            if (!complete_board.get(s1)) nodes[s2].connect(nodes[s1]);
         }
     }
 
@@ -99,8 +87,11 @@ namespace sjadam {
         init_nodes();
         this->our_board = our_board;
         this->their_board = their_board;
-        init_graph(*our_board, our_nodes);
-        init_graph(*their_board, their_nodes);
+        const lczero::BitBoard complete_board = *our_board + *their_board;
+        for (lczero::BoardSquare square : *our_board)
+            add_connections_over(square, complete_board, our_nodes);
+        for (lczero::BoardSquare square : *their_board)
+                add_connections_over(square, complete_board, their_nodes);
     }
 
     void JumpGraph::init_nodes() {
@@ -156,7 +147,8 @@ namespace sjadam {
     void JumpGraph::move(const lczero::BoardSquare& from,
                          const lczero::BoardSquare& to) {
         remove_connections_over(from, our_nodes);
-        add_connections_over(to, *our_board, our_nodes);
+        const lczero::BitBoard complete_board = *our_board + *their_board;
+        add_connections_over(to, complete_board, our_nodes);
         add_connections_to(from);
         remove_connections_to(to);
     }
@@ -189,6 +181,26 @@ namespace sjadam {
                         squares.emplace_back(top->get_square());
                         graphs[top->get_square()] = graph_counter;
                         for (const Node* nn : top->get_neighbours()) { stack.push(nn); }
+                        for (const Node* tn : their_nodes[top->get_square()].get_neighbours()) {
+                            // One jump over their piece is allowed,
+                            // so add the squares connected to this one
+                            // through one jump, if the square
+                            // isn't part of any of our graphs
+                            // through another node, because then
+                            // it will be visited when searching
+                            // the graph through another node.
+                            if (!our_nodes[tn->get_square()].get_neighbours().empty()) {
+                                // The node has neighbours, thus it is
+                                // part of one of our graphs.
+                                // The square is empty,
+                                // (you cannot jump to an occupied square)
+                                // so all outgoing connections
+                                // has a corresponding incoming connection
+                                // from another node in one of our graphs.
+                                continue;
+                            }
+                            squares.emplace_back(tn->get_square());
+                        }
                     }
                     destinations.emplace_back(squares); // Add the destinations for this graph
                     std::list<lczero::BoardSquare> this_source;
