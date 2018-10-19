@@ -50,6 +50,15 @@ namespace sjadam {
         void move(const lczero::BoardSquare& from,
                   const lczero::BoardSquare& to);
 
+        /**
+         * Get the set of all pairs of destination squares
+         * with the corresponding set of source squares.
+         * All sets of destination squares will be disjunct.
+         * @return list of source - destination squares pairs.
+         */
+        std::list<std::pair<std::list<lczero::BoardSquare>, std::list<lczero::BoardSquare>>>
+        get_source_and_destination_squares();
+
     private:
         void init_nodes();
         void add_connections_to(const lczero::BoardSquare& square);

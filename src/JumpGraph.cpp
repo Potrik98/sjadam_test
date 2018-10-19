@@ -160,4 +160,50 @@ namespace sjadam {
         add_connections_to(from);
         remove_connections_to(to);
     }
+
+    /**
+     * Get the set of all pairs of destination squares
+     * with the corresponding set of source squares.
+     * All sets of destination squares will be disjunct.
+     * @return list of source - destination squares pairs.
+     */
+    std::list<std::pair<std::list<lczero::BoardSquare>, std::list<lczero::BoardSquare>>>
+    JumpGraph::get_source_and_destination_squares() {
+        std::array<int, 64> graphs{0};
+        int graph_counter = 0;
+        std::vector<std::list<lczero::BoardSquare>> sources;
+        std::vector<std::list<lczero::BoardSquare>> destinations;
+        for (lczero::BoardSquare square : *our_board) {
+            const std::list<const Node*>& neighbours = our_nodes[square.as_int()].get_neighbours();
+            for (const Node* n : neighbours) {
+                if(graphs[n->get_square()] == 0) {
+                    // This graph has not been visited
+                    ++graph_counter;
+                    std::list<lczero::BoardSquare> squares;
+                    std::stack<const Node*> stack;
+                    stack.push(n);
+                    while(!stack.empty()) {
+                        const Node* top = stack.top();
+                        stack.pop();
+                        if (graphs[top->get_square()] != 0) continue;
+                        squares.emplace_back(top->get_square());
+                        graphs[top->get_square()] = graph_counter;
+                        for (const Node* nn : top->get_neighbours()) { stack.push(nn); }
+                    }
+                    destinations.emplace_back(squares); // Add the destinations for this graph
+                    std::list<lczero::BoardSquare> this_source;
+                    this_source.emplace_back(square); // Add this square as the first source square
+                    sources.emplace_back(this_source);
+                } else {
+                    // This graph has already been visited
+                    sources[graphs[n->get_square()] - 1].emplace_back(square); // Add this square as a source
+                };
+            }
+        }
+        std::list<std::pair<std::list<lczero::BoardSquare>, std::list<lczero::BoardSquare>>> result;
+        for (int i = 0; i < graph_counter; ++i) {
+            result.emplace_back(std::make_pair(sources[i], destinations[i]));
+        }
+        return result;
+    }
 }
