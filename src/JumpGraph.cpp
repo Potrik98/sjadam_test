@@ -5,15 +5,27 @@
 #include <sstream>
 
 namespace sjadam {
-    void Node::connect(Node* other) {
+    static const std::pair<int, int> all_directions[] = {
+            {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
+    static const std::pair<int, int> some_directions[] = {
+            {1, 1}, {1, 0}, {1, -1}, {0, 1}};
+
+    void Node::connect(const Node* other) {
         printf("connecting %d to %d \n", square, other->square);
         neighbours.push_back(other);
     }
 
-    void Node::disconnect(Node* other) {
+    void Node::disconnect(const Node* other) {
         printf("disconnecting %d from %d \n", other->square, square);
         neighbours.remove_if([other](const Node* node) {
             return *other == *node;
+        });
+    }
+
+    void Node::disconnect(const std::uint8_t& other_square) {
+        printf("disconnecting %d from %d \n", other_square, square);
+        neighbours.remove_if([other_square](const Node* node) {
+            return other_square == node->square;
         });
     }
 
@@ -33,37 +45,17 @@ namespace sjadam {
      */
     void remove_connections_over(const lczero::BoardSquare &square,
                                  std::array<Node, 64> &nodes) {
-        int row = square.row();
-        int col = square.col();
-        int rp1 = row + 1;
-        int cp1 = col + 1;
-        int rm1 = row - 1;
-        int cm1 = col - 1;
-        if (lczero::BoardSquare::IsValidCoord(rp1)
-            && lczero::BoardSquare::IsValidCoord(rm1)) {
-            uint8_t s1 = lczero::BoardSquare(rm1, col).as_int();
-            uint8_t s2 = lczero::BoardSquare(rp1, col).as_int();
-            nodes[s1].disconnect(nodes[s2]);
-            nodes[s2].disconnect(nodes[s1]);
-            if (lczero::BoardSquare::IsValidCoord(cp1)
-                && lczero::BoardSquare::IsValidCoord(cm1)) {
-                s1 = lczero::BoardSquare(rm1, cm1).as_int();
-                s2 = lczero::BoardSquare(rp1, cp1).as_int();
-                nodes[s1].disconnect(nodes[s2]);
-                nodes[s2].disconnect(nodes[s1]);
-
-                s1 = lczero::BoardSquare(rm1, cp1).as_int();
-                s2 = lczero::BoardSquare(rp1, cm1).as_int();
-                nodes[s1].disconnect(nodes[s2]);
-                nodes[s2].disconnect(nodes[s1]);
-            }
-        }
-        if (lczero::BoardSquare::IsValidCoord(cp1)
-            && lczero::BoardSquare::IsValidCoord(cm1)) {
-            uint8_t s1 = lczero::BoardSquare(row, cp1).as_int();
-            uint8_t s2 = lczero::BoardSquare(row, cm1).as_int();
-            nodes[s1].disconnect(nodes[s2]);
-            nodes[s2].disconnect(nodes[s1]);
+        for (const auto& direction : some_directions) {
+            const int s1_row = square.row() + direction.first;
+            const int s1_col = square.col() + direction.second;
+            const int s2_row = square.row() - direction.first;
+            const int s2_col = square.col() - direction.second;
+            if (!lczero::BoardSquare::IsValid(s1_row, s1_col)) continue;
+            if (!lczero::BoardSquare::IsValid(s2_row, s2_col)) continue;
+            const std::uint8_t s1 = lczero::BoardSquare(s1_row, s1_col).as_int();
+            const std::uint8_t s2 = lczero::BoardSquare(s2_row, s2_col).as_int();
+            nodes[s1].disconnect(s2);
+            nodes[s2].disconnect(s1);
         }
     }
 
@@ -76,35 +68,15 @@ namespace sjadam {
     void add_connections_over(const lczero::BoardSquare &square,
                               const lczero::BitBoard &board,
                               std::array<Node, 64> &nodes) {
-        int row = square.row();
-        int col = square.col();
-        int rp1 = row + 1;
-        int cp1 = col + 1;
-        int rm1 = row - 1;
-        int cm1 = col - 1;
-        if (lczero::BoardSquare::IsValidCoord(rp1)
-            && lczero::BoardSquare::IsValidCoord(rm1)) {
-            uint8_t s1 = lczero::BoardSquare(rm1, col).as_int();
-            uint8_t s2 = lczero::BoardSquare(rp1, col).as_int();
-            if (!board.get(s2)) nodes[s1].connect(nodes[s2]);
-            if (!board.get(s1)) nodes[s2].connect(nodes[s1]);
-            if (lczero::BoardSquare::IsValidCoord(cp1)
-                && lczero::BoardSquare::IsValidCoord(cm1)) {
-                s1 = lczero::BoardSquare(rm1, cm1).as_int();
-                s2 = lczero::BoardSquare(rp1, cp1).as_int();
-                if (!board.get(s2)) nodes[s1].connect(nodes[s2]);
-                if (!board.get(s1)) nodes[s2].connect(nodes[s1]);
-
-                s1 = lczero::BoardSquare(rm1, cp1).as_int();
-                s2 = lczero::BoardSquare(rp1, cm1).as_int();
-                if (!board.get(s2)) nodes[s1].connect(nodes[s2]);
-                if (!board.get(s1)) nodes[s2].connect(nodes[s1]);
-            }
-        }
-        if (lczero::BoardSquare::IsValidCoord(cp1)
-            && lczero::BoardSquare::IsValidCoord(cm1)) {
-            uint8_t s1 = lczero::BoardSquare(row, cp1).as_int();
-            uint8_t s2 = lczero::BoardSquare(row, cm1).as_int();
+        for (const auto& direction : some_directions) {
+            const int s1_row = square.row() + direction.first;
+            const int s1_col = square.col() + direction.second;
+            const int s2_row = square.row() - direction.first;
+            const int s2_col = square.col() - direction.second;
+            if (!lczero::BoardSquare::IsValid(s1_row, s1_col)) continue;
+            if (!lczero::BoardSquare::IsValid(s2_row, s2_col)) continue;
+            const std::uint8_t s1 = lczero::BoardSquare(s1_row, s1_col).as_int();
+            const std::uint8_t s2 = lczero::BoardSquare(s2_row, s2_col).as_int();
             if (!board.get(s2)) nodes[s1].connect(nodes[s2]);
             if (!board.get(s1)) nodes[s2].connect(nodes[s1]);
         }
@@ -139,6 +111,44 @@ namespace sjadam {
     }
 
     /**
+     * Add all connections jumping to a square, for both sides
+     * Useful for adding connections to a newly vacated square
+     * @param square square to jump to
+     */
+    void JumpGraph::add_connections_to(const lczero::BoardSquare& square) {
+        for (const auto& direction : all_directions) {
+            const int from_row = square.row() + 2 * direction.first;
+            const int from_col = square.col() + 2 * direction.second;
+            if (!lczero::BoardSquare::IsValid(from_row, from_col)) continue;
+            const int over_row = square.row() + direction.first;
+            const int over_col = square.col() + direction.second;
+            const lczero::BoardSquare from_square(from_row, from_col);
+            if (our_board->get(over_row, over_col)) {
+                our_nodes[from_square.as_int()].connect(our_nodes[square.as_int()]);
+            }
+            if (their_board->get(over_row, over_col)) {
+                their_nodes[from_square.as_int()].connect(their_nodes[square.as_int()]);
+            }
+        }
+    }
+
+    /**
+     * Remove all connections jumping to a square, for both sides
+     * Useful for removing connections when a square has been occupied
+     * @param square square to jump to
+     */
+    void JumpGraph::remove_connections_to(const lczero::BoardSquare &square) {
+        for (const auto& direction : all_directions) {
+            const int from_row = square.row() + 2 * direction.first;
+            const int from_col = square.col() + 2 * direction.second;
+            if (!lczero::BoardSquare::IsValid(from_row, from_col)) continue;
+            const lczero::BoardSquare from_square(from_row, from_col);
+            our_nodes[from_square.as_int()].disconnect(square.as_int());
+            their_nodes[from_square.as_int()].disconnect(square.as_int());
+        }
+    }
+
+    /**
      * Move one of our pieces from one square to another
      * @param from move from this square
      * @param to move to this square
@@ -147,5 +157,7 @@ namespace sjadam {
                          const lczero::BoardSquare& to) {
         remove_connections_over(from, our_nodes);
         add_connections_over(to, *our_board, our_nodes);
+        add_connections_to(from);
+        remove_connections_to(to);
     }
 }
