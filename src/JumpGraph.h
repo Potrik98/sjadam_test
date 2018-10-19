@@ -26,8 +26,6 @@ namespace sjadam {
 
         void connect(Node* other);
         void connect(Node& other) { this->connect(&other); }
-        void connect_safe(Node* other);
-        void connect_safe(Node& other) { this->connect_safe(&other); }
         void disconnect(Node* other);
         void disconnect(Node& other) { this->disconnect(&other); }
         bool is_connected_to(const Node* other);
@@ -35,24 +33,16 @@ namespace sjadam {
 
     class JumpGraph {
     private:
-        std::array<Node, 64> white_nodes;
-        std::array<Node, 64> black_nodes;
+        std::array<Node, 64> our_nodes;
+        std::array<Node, 64> their_nodes;
+        lczero::BitBoard* our_board;
+        lczero::BitBoard* their_board;
     public:
-        JumpGraph();
-        explicit JumpGraph(const lczero::BitBoard& white,
-                           const lczero::BitBoard& black);
-        void move(const lczero::BitBoard& bitBoard,
-                  const lczero::BoardSquare& from,
-                  const lczero::BoardSquare& to,
-                  const std::uint8_t& color) {
-            if (color == 0) move(bitBoard, from, to, white_nodes);
-            else move(bitBoard, from, to, black_nodes);
-        }
+        explicit JumpGraph(lczero::BitBoard* our_board,
+                           lczero::BitBoard* their_board);
 
-        void move(const lczero::BitBoard& bitBoard,
-                  const lczero::BoardSquare& from,
-                  const lczero::BoardSquare& to,
-                  std::array<Node, 64>& nodes);
+        void move(const lczero::BoardSquare& from,
+                  const lczero::BoardSquare& to);
 
     private:
         void init_nodes();
