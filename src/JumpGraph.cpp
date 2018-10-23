@@ -5,7 +5,7 @@
 #include <sstream>
 
 namespace sjadam {
-    static const std::pair<int, int> all_directions[] = {
+    static const std::pair<int, int> all_directions[8] = {
             {-1, -1},
             {-1, 0},
             {-1, 1},
@@ -14,7 +14,7 @@ namespace sjadam {
             {1,  -1},
             {1,  0},
             {1,  1}};
-    static const std::pair<int, int> some_directions[] = {
+    static const std::pair<int, int> some_directions[4] = {
             {1, 1},
             {1, 0},
             {1, -1},
@@ -97,11 +97,14 @@ namespace sjadam {
         init_nodes();
         this->our_board = our_board;
         this->their_board = their_board;
-        const lczero::BitBoard complete_board = *our_board + *their_board;
+        lczero::BitBoard complete_board = *our_board + *their_board;
         for (lczero::BoardSquare square : *our_board)
             add_connections_over(square, complete_board, (*our_nodes));
+        their_board->Mirror();
+        complete_board.Mirror();
         for (lczero::BoardSquare square : *their_board)
             add_connections_over(square, complete_board, (*their_nodes));
+        their_board->Mirror();
     }
 
     void JumpGraph::init_nodes() {
@@ -165,6 +168,10 @@ namespace sjadam {
         remove_connections_to(to);
     }
 
+    std::uint8_t mirror_square(const std::uint8_t& square) {
+        return static_cast<uint8_t>(square ^ 0b111000);;
+    }
+
     /**
      * Get the set of all pairs of destination squares
      * with the corresponding set of source squares.
@@ -193,7 +200,7 @@ namespace sjadam {
                         squares.emplace_back(top->get_square());
                         graphs[top->get_square()] = graph_counter;
                         for (const Node* nn : top->get_neighbours()) { stack.push(nn); }
-                        for (const Node* tn : (*their_nodes)[top->get_square()].get_neighbours()) {
+                        for (const Node* tn : (*their_nodes)[mirror_square(top->get_square())].get_neighbours()) {
                             // One jump over their piece is allowed,
                             // so add the squares connected to this one
                             // through one jump, if the square
@@ -201,7 +208,8 @@ namespace sjadam {
                             // through another node, because then
                             // it will be visited when searching
                             // the graph through another node.
-                            if (!(*our_nodes)[tn->get_square()].get_neighbours().empty()) {
+                            std::uint8_t sq = mirror_square(tn->get_square());
+                            if (!(*our_nodes)[sq].get_neighbours().empty()) {
                                 // The node has neighbours, thus it is
                                 // part of one of our graphs.
                                 // The square is empty,
@@ -211,7 +219,7 @@ namespace sjadam {
                                 // from another node in one of our graphs.
                                 continue;
                             }
-                            squares.emplace_back(tn->get_square());
+                            squares.emplace_back(sq);
                         }
                     }
                     destinations.emplace_back(squares); // Add the destinations for this graph

@@ -36,6 +36,16 @@ int main() {
     graph.move(from, to);
 
     print(graph);
+    graph.flip();
+    black.Mirror();
+    white.Mirror();
+    black.reset(10);
+    black.set(18);
+    graph.move(10, 18);
+    black.reset(11);
+    black.set(27);
+    graph.move(11, 27);
+    print(graph);
 
     return 0;
 }
