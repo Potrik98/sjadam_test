@@ -10,5 +10,6 @@ include_directories(
 add_executable(graph
         src/main.cpp
         src/JumpGraph.cpp
+        src/JumpNetwork.cpp
         src/chess/bitboard.cc
         src/chess/board.cc)
