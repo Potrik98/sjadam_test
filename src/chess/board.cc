@@ -26,6 +26,7 @@
 */
 
 #include "chess/board.h"
+#include "JumpNetwork.h"
 
 #include <cctype>
 #include <cstdlib>
@@ -54,7 +55,6 @@ namespace lczero {
         our_king_.Mirror();
         their_king_.Mirror();
         std::swap(our_king_, their_king_);
-        jump_graph.flip();
         castlings_.Mirror();
         flipped_ = !flipped_;
     }
@@ -190,7 +190,7 @@ namespace lczero {
 
     MoveList ChessBoard::GeneratePseudolegalMoves() const {
         MoveList result;
-        auto source_and_destination_squares = jump_graph.get_source_and_destination_squares();
+        auto source_and_destination_squares = sjadam::get_source_and_destination_squares(our_pieces_, their_pieces_);
         for (auto pair : source_and_destination_squares) {
             const std::list<BoardSquare>& sources = pair.first;
             const std::list<BoardSquare>& destinations = pair.second;
@@ -482,7 +482,6 @@ namespace lczero {
         // Move in our pieces.
         our_pieces_.reset(from);
         our_pieces_.set(to);
-        jump_graph.move(from, to);
 
         // Remove captured piece
         bool reset_50_moves = their_pieces_.get(to);
@@ -522,14 +521,12 @@ namespace lczero {
                 rooks_.reset(7);
                 our_pieces_.set(5);
                 rooks_.set(5);
-                jump_graph.move(7, 5);
             } else if (from_col - to_col > 1) {
                 // 0-0-0
                 our_pieces_.reset(0);
                 rooks_.reset(0);
                 our_pieces_.set(3);
                 rooks_.set(3);
-                jump_graph.move(0, 3);
             }
             return reset_50_moves;
         }
@@ -814,7 +811,6 @@ namespace lczero {
                 throw Exception("Bad fen string: " + fen + " wrong en passant rank");
             pawns_.set((square.row() == 2) ? 0 : 7, square.col());
         }
-        jump_graph.set_bit_boards(&our_pieces_, &their_pieces_);
         if (who_to_move == "b" || who_to_move == "B") {
             Mirror();
         }

@@ -1,7 +1,6 @@
 #include <iostream>
 #include "chess/bitboard.h"
 #include "chess/board.h"
-#include "JumpGraph.h"
 #include "JumpNetwork.h"
 
 void print_source_dest_sq(const std::list<std::pair<std::list<lczero::BoardSquare>, std::list<lczero::BoardSquare>>>& sd) {
@@ -44,15 +43,12 @@ int main() {
     chessBoard.Mirror();
     chessBoard.ApplyMove(lczero::Move(12, 20)); //e7e6
     chessBoard.Mirror();
-    sjadam::JumpGraph g;
     lczero::BitBoard o = chessBoard.ours();
     lczero::BitBoard t = chessBoard.theirs();
-    g.set_bit_boards(&o, &t);
-    print_source_dest_sq(g.get_source_and_destination_squares());
     print_moves(chessBoard);
+    print_source_dest_sq(sjadam::get_source_and_destination_squares(o, t));
     chessBoard.ApplyMove(lczero::Move("c1d8"));
     std::cout << std::endl << chessBoard.DebugString() << std::endl;
-    print_source_dest_sq(sjadam::get_source_and_destination_squares(o, t));
 
     return 0;
 }

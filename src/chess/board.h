@@ -30,7 +30,6 @@
 #include <string>
 #include "chess/bitboard.h"
 #include "utils/hashcat.h"
-#include "JumpGraph.h"
 
 namespace lczero {
 
@@ -170,7 +169,6 @@ class ChessBoard {
   BoardSquare our_king_;
   BoardSquare their_king_;
   Castlings castlings_;
-  sjadam::JumpGraph jump_graph;
   bool flipped_ = false;  // aka "Black to move".
 };
 
