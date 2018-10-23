@@ -184,14 +184,6 @@ namespace lczero {
                 0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
                 0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
                 0x0000000000000000ULL};
-
-        static const Move::Promotion kPromotions[] = {
-                Move::Promotion::Queen,
-                Move::Promotion::Rook,
-                Move::Promotion::Bishop,
-                Move::Promotion::Knight,
-        };
-
     }  // namespace
 
     BitBoard ChessBoard::pawns() const { return pawns_ * kPawnMask; }
@@ -202,6 +194,16 @@ namespace lczero {
         for (auto pair : source_and_destination_squares) {
             const std::list<BoardSquare>& sources = pair.first;
             const std::list<BoardSquare>& destinations = pair.second;
+//            printf("Generating for pair: ");
+//            printf("{ ");
+//            for (auto sq : sources) {
+//                printf("%s ", sq.as_string().c_str());
+//            }
+//            printf("} -> { ");
+//            for (auto sq : destinations) {
+//                printf("%s ", sq.as_string().c_str());
+//            }
+//            printf("}\n");
             BoardSquare king_square;
             bool has_king_square = false;
             std::list<BoardSquare> rook_squares;
@@ -216,6 +218,9 @@ namespace lczero {
                     pawn_squares.emplace_back(source);
                 } else if (rooks_.get(source)) {
                     rook_squares.emplace_back(source);
+                    if (bishops_.get(source)) {
+                        bishop_squares.emplace_back(source);
+                    }
                 } else if (bishops_.get(source)) {
                     bishop_squares.emplace_back(source);
                 } else {
@@ -477,6 +482,7 @@ namespace lczero {
         // Move in our pieces.
         our_pieces_.reset(from);
         our_pieces_.set(to);
+        jump_graph.move(from, to);
 
         // Remove captured piece
         bool reset_50_moves = their_pieces_.get(to);
@@ -516,37 +522,20 @@ namespace lczero {
                 rooks_.reset(7);
                 our_pieces_.set(5);
                 rooks_.set(5);
+                jump_graph.move(7, 5);
             } else if (from_col - to_col > 1) {
                 // 0-0-0
                 our_pieces_.reset(0);
                 rooks_.reset(0);
                 our_pieces_.set(3);
                 rooks_.set(3);
+                jump_graph.move(0, 3);
             }
             return reset_50_moves;
         }
 
         // Now destination square for our piece is known.
         our_pieces_.set(to);
-
-        // Promotion
-        if (move.promotion() != Move::Promotion::None) {
-            switch (move.promotion()) {
-                case Move::Promotion::Rook:
-                    rooks_.set(to);
-                    break;
-                case Move::Promotion::Bishop:
-                    bishops_.set(to);
-                    break;
-                case Move::Promotion::Queen:
-                    rooks_.set(to);
-                    bishops_.set(to);
-                    break;
-                default:;
-            }
-            pawns_.reset(from);
-            return true;
-        }
 
         // Reset castling rights.
         if (from.as_int() == 0) {
@@ -556,13 +545,21 @@ namespace lczero {
             castlings_.reset_we_can_00();
         }
 
+        rooks_.reset(from);
+        bishops_.reset(from);
+        pawns_.reset(from);
+
+        // Promotion
+        if (to.row() == 7) {
+            rooks_.set(to);
+            bishops_.set(to);
+            return true;
+        }
+
         // Ordinary move.
         rooks_.set_if(to, rooks_.get(from));
         bishops_.set_if(to, bishops_.get(from));
         pawns_.set_if(to, pawns_.get(from));
-        rooks_.reset(from);
-        bishops_.reset(from);
-        pawns_.reset(from);
 
         // Set en passant flag.
         if (to_row - from_row == 2 && pawns_.get(to)) {

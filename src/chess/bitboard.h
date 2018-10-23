@@ -231,19 +231,18 @@ namespace lczero {
 
     class Move {
     public:
-        enum class Promotion : std::uint8_t { None, Queen, Rook, Bishop, Knight };
         Move() = default;
         Move(BoardSquare from, BoardSquare to)
                 : data_(to.as_int() + (from.as_int() << 6)) {}
-        Move(BoardSquare from, BoardSquare to, Promotion promotion)
-                : data_(to.as_int() + (from.as_int() << 6) +
-                        (static_cast<uint8_t>(promotion) << 12)) {}
+//        Move(BoardSquare from, BoardSquare to, Promotion promotion)
+//                : data_(to.as_int() + (from.as_int() << 6) +
+//                        (static_cast<uint8_t>(promotion) << 12)) {}
         Move(const std::string& str, bool black = false);
         Move(const char* str, bool black = false) : Move(std::string(str), black) {}
 
         BoardSquare to() const { return BoardSquare(data_ & kToMask); }
         BoardSquare from() const { return BoardSquare((data_ & kFromMask) >> 6); }
-        Promotion promotion() const { return Promotion((data_ & kPromoMask) >> 12); }
+//        Promotion promotion() const { return Promotion((data_ & kPromoMask) >> 12); }
         bool castling() const { return (data_ & kCastleMask) != 0; }
         void SetCastling() { data_ |= kCastleMask; }
 
@@ -251,9 +250,9 @@ namespace lczero {
         void SetFrom(BoardSquare from) {
             data_ = (data_ & ~kFromMask) | (from.as_int() << 6);
         }
-        void SetPromotion(Promotion promotion) {
-            data_ = (data_ & ~kPromoMask) | (static_cast<uint8_t>(promotion) << 12);
-        }
+//        void SetPromotion(Promotion promotion) {
+//            data_ = (data_ & ~kPromoMask) | (static_cast<uint8_t>(promotion) << 12);
+//        }
         // 0 .. 16384, knight promotion and no promotion is the same.
         uint16_t as_packed_int() const;
 
@@ -274,20 +273,11 @@ namespace lczero {
 
         std::string as_string() const {
             std::string res = from().as_string() + to().as_string();
-            switch (promotion()) {
-                case Promotion::None:
-                    return res;
-                case Promotion::Queen:
-                    return res + 'q';
-                case Promotion::Rook:
-                    return res + 'r';
-                case Promotion::Bishop:
-                    return res + 'b';
-                case Promotion::Knight:
-                    return res + 'n';
+            if (to().row() == 7) { // promotion
+                return res + 'q';
+            } else {
+                return res;
             }
-            assert(false);
-            return "Error!";
         }
 
     private:
@@ -299,9 +289,9 @@ namespace lczero {
         // bit 15 whether move is a castling
 
         enum Masks : uint16_t {
-            kToMask = 0b0000000000111111,
-            kFromMask = 0b0000111111000000,
-            kPromoMask = 0b0111000000000000,
+            kToMask     = 0b0000000000111111,
+            kFromMask   = 0b0000111111000000,
+            kPromoMask  = 0b0111000000000000,
             kCastleMask = 0b1000000000000000,
         };
     };

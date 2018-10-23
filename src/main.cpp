@@ -3,36 +3,56 @@
 #include "chess/board.h"
 #include "JumpGraph.h"
 
-void print(sjadam::JumpGraph& graph) {
+void print_source_dest_sq(sjadam::JumpGraph& graph) {
     auto sd = graph.get_source_and_destination_squares();
     for (auto p : sd) {
-        auto s = p.first;
-        auto d = p.second;
-        std::cout << "{ ";
-        for (auto sq : s) {
-            std::cout << (int) sq.as_int() << " ";
+        printf("{ ");
+        for (auto sq : p.first) {
+            printf("%s ", sq.as_string().c_str());
         }
-        std::cout << "} -> { ";
-        for (auto sq : d) {
-            std::cout << (int) sq.as_int() << " ";
+        printf("} -> { ");
+        for (auto sq : p.second) {
+            printf("%s ", sq.as_string().c_str());
         }
-        std::cout << "}" << std::endl;
+        printf("}\n");
+    }
+}
+
+void print_moves(lczero::ChessBoard& chessBoard) {
+    lczero::MoveList moveList = chessBoard.GeneratePseudolegalMoves();
+    std::list<std::string> list;
+    for (auto m : moveList) {
+        list.emplace_back(m.as_string());
+    }
+    list.sort();
+    list.unique();
+    std::cout << "Generated " << list.size() << " moves:" << std::endl;
+    for (const auto& s : list) {
+        std::cout << s << std::endl;
     }
 }
 
 int main() {
     lczero::ChessBoard chessBoard;
     chessBoard.SetFromFen(lczero::ChessBoard::kStartingFen);
-    lczero::MoveList moveList = chessBoard.GeneratePseudolegalMoves();
-    printf("Generated %d moves:\n", moveList.size());
-    std::list<std::string> list;
-    for (auto m : moveList) {
-        list.emplace_back(m.as_string());
-    }
-    list.sort();
-    for (const auto& s : list) {
-        std::cout << s << std::endl;
-    }
+
+    chessBoard.ApplyMove(lczero::Move(11, 19)); //d2d3
+    chessBoard.Mirror();
+    chessBoard.ApplyMove(lczero::Move(11, 19)); //d7d6
+    chessBoard.Mirror();
+    chessBoard.ApplyMove(lczero::Move(12, 28)); //e2e4
+    chessBoard.Mirror();
+    chessBoard.ApplyMove(lczero::Move(12, 20)); //e7e6
+    chessBoard.Mirror();
+    sjadam::JumpGraph g;
+    lczero::BitBoard o = chessBoard.ours();
+    lczero::BitBoard t = chessBoard.theirs();
+    g.set_bit_boards(&o, &t);
+    print_source_dest_sq(g);
+    print_moves(chessBoard);
+    chessBoard.ApplyMove(lczero::Move("c1d8"));
+    std::cout << std::endl << chessBoard.DebugString() << std::endl;
+
 
     return 0;
 }
