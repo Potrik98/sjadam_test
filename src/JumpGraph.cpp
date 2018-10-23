@@ -155,7 +155,7 @@ namespace sjadam {
      * @return list of source - destination squares pairs.
      */
     std::list<std::pair<std::list<lczero::BoardSquare>, std::list<lczero::BoardSquare>>>
-    JumpGraph::get_source_and_destination_squares() {
+    JumpGraph::get_source_and_destination_squares() const {
         std::array<int, 64> graphs{0};
         int graph_counter = 0;
         std::vector<std::list<lczero::BoardSquare>> sources;
@@ -221,6 +221,15 @@ namespace sjadam {
     }
 
     void JumpGraph::set_bit_boards(lczero::BitBoard* our_board, lczero::BitBoard* their_board) {
+        if (our_connections == nullptr) {
+            our_connections = static_cast<bool*>(malloc(64 * 64 * sizeof(bool)));
+            printf("Allocated our connections: %x\n", our_connections);
+        }
+        if (their_connections == nullptr) {
+            their_connections = static_cast<bool*>(malloc(64 * 64 * sizeof(bool)));
+            printf("Allocated their connections: %x\n", their_connections);
+        }
+
         this->our_board = our_board;
         this->their_board = their_board;
         lczero::BitBoard complete_board = *our_board + *their_board;

@@ -23,30 +23,16 @@ void print(sjadam::JumpGraph& graph) {
 int main() {
     lczero::ChessBoard chessBoard;
     chessBoard.SetFromFen(lczero::ChessBoard::kStartingFen);
-    lczero::BitBoard white = chessBoard.ours();
-    lczero::BitBoard black = chessBoard.theirs();
-    sjadam::JumpGraph graph;
-    graph.set_bit_boards(&white, &black);
-
-    print(graph);
-
-    lczero::BoardSquare from(10);
-    lczero::BoardSquare to(18);
-    white.reset(from);
-    white.set(to);
-    graph.move(from, to);
-
-    print(graph);
-    graph.flip();
-    black.Mirror();
-    white.Mirror();
-    black.reset(10);
-    black.set(18);
-    graph.move(10, 18);
-    black.reset(11);
-    black.set(27);
-    graph.move(11, 27);
-    print(graph);
+    lczero::MoveList moveList = chessBoard.GeneratePseudolegalMoves();
+    printf("Generated %d moves:\n", moveList.size());
+    std::list<std::string> list;
+    for (auto m : moveList) {
+        list.emplace_back(m.as_string());
+    }
+    list.sort();
+    for (const auto& s : list) {
+        std::cout << s << std::endl;
+    }
 
     return 0;
 }

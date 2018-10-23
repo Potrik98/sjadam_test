@@ -43,7 +43,7 @@ namespace sjadam {
          * @return list of source - destination squares pairs.
          */
         std::list<std::pair<std::list<lczero::BoardSquare>, std::list<lczero::BoardSquare>>>
-        get_source_and_destination_squares();
+        get_source_and_destination_squares() const;
 
     private:
         void add_connections_to(const lczero::BoardSquare& square);
