@@ -292,15 +292,6 @@ namespace lczero {
                             for (BoardSquare source : pawn_squares) {
                                 result.emplace_back(source, destination);
                             }
-                            if (dst_row == 2) {
-                                // Maybe it'll be possible to move two squares.
-                                if (!our_pieces_.get(3, dst_col) &&
-                                    !their_pieces_.get(3, dst_col)) {
-                                    for (BoardSquare source : pawn_squares) {
-                                        result.emplace_back(source, BoardSquare(3, dst_col));
-                                    }
-                                }
-                            }
                         }
                     }
                     // Captures.
@@ -497,8 +488,7 @@ namespace lczero {
         }
 
         // En passant
-        if (from_row == 4 && pawns_.get(from) && from_col != to_col &&
-            pawns_.get(7, to_col)) {
+        if (from_row == 4 && pawns_.get(from) && from_col != to_col && pawns_.get(7, to_col)) {
             pawns_.reset(4, to_col);
             their_pieces_.reset(4, to_col);
         }
