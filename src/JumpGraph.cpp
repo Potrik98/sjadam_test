@@ -3,6 +3,7 @@
 #include <stack>
 #include <stdio.h>
 #include <sstream>
+#include <cublas_v2.h>
 
 namespace sjadam {
     static const std::pair<int, int> all_directions[8] = {
@@ -20,32 +21,36 @@ namespace sjadam {
             {1, -1},
             {0, 1}};
 
-    void Node::connect(const Node* other) {
-        printf("connecting %d to %d \n", square, other->square);
-        neighbours.push_back(other);
+    std::uint8_t mirror_square(const std::uint8_t& square) {
+        return static_cast<uint8_t>(square ^ 0b111000);
     }
 
-    void Node::disconnect(const Node* other) {
-        printf("disconnecting %d from %d \n", other->square, square);
-        neighbours.remove_if([other](const Node* node) {
-            return *other == *node;
-        });
+    void connect(const std::uint8_t& sq1,
+                 const std::uint8_t& sq2,
+                 bool* connections) {
+        connections[sq1 * 64 + sq2] = true;
     }
 
-    void Node::disconnect(const std::uint8_t& other_square) {
-        printf("disconnecting %d from %d \n", other_square, square);
-        neighbours.remove_if([other_square](const Node* node) {
-            return other_square == node->square;
-        });
+    void disconnect(const std::uint8_t& sq1,
+                    const uint8_t& sq2,
+                    bool* connections) {
+        connections[sq1 * 64 + sq2] = false;
     }
 
-    bool Node::is_connected_to(const Node* other) {
-        return std::any_of(
-                std::begin(neighbours),
-                std::end(neighbours),
-                [other](const Node* node) {
-                    return *other == *node;
-                });
+    void JumpGraph::connect_ours(const std::uint8_t& sq1, const std::uint8_t& sq2) {
+        connect(sq1, sq2, our_connections);
+    }
+
+    void JumpGraph::connect_theirs(const std::uint8_t& sq1, const std::uint8_t& sq2) {
+        connect(mirror_square(sq1), mirror_square(sq2), their_connections);
+    }
+
+    void JumpGraph::disconnect_ours(const std::uint8_t& sq1, const std::uint8_t& sq2) {
+        disconnect(sq1, sq2, our_connections);
+    }
+
+    void JumpGraph::disconnect_theirs(const std::uint8_t& sq1, const std::uint8_t& sq2) {
+        disconnect(mirror_square(sq1), mirror_square(sq2), their_connections);
     }
 
     /**
@@ -54,7 +59,7 @@ namespace sjadam {
      * @param nodes the graph to remove the connections from
      */
     void remove_connections_over(const lczero::BoardSquare& square,
-                                 std::array<Node, 64>& nodes) {
+                                 bool* connections) {
         for (const auto& direction : some_directions) {
             const int s1_row = square.row() + direction.first;
             const int s1_col = square.col() + direction.second;
@@ -64,8 +69,8 @@ namespace sjadam {
             if (!lczero::BoardSquare::IsValid(s2_row, s2_col)) continue;
             const std::uint8_t s1 = lczero::BoardSquare(s1_row, s1_col).as_int();
             const std::uint8_t s2 = lczero::BoardSquare(s2_row, s2_col).as_int();
-            nodes[s1].disconnect(s2);
-            nodes[s2].disconnect(s1);
+            disconnect(s1, s2, connections);
+            disconnect(s2, s1, connections);
         }
     }
 
@@ -77,7 +82,7 @@ namespace sjadam {
      */
     void add_connections_over(const lczero::BoardSquare& square,
                               const lczero::BitBoard& complete_board,
-                              std::array<Node, 64>& nodes) {
+                              bool* connections) {
         for (const auto& direction : some_directions) {
             const int s1_row = square.row() + direction.first;
             const int s1_col = square.col() + direction.second;
@@ -87,33 +92,9 @@ namespace sjadam {
             if (!lczero::BoardSquare::IsValid(s2_row, s2_col)) continue;
             const std::uint8_t s1 = lczero::BoardSquare(s1_row, s1_col).as_int();
             const std::uint8_t s2 = lczero::BoardSquare(s2_row, s2_col).as_int();
-            if (!complete_board.get(s2)) nodes[s1].connect(nodes[s2]);
-            if (!complete_board.get(s1)) nodes[s2].connect(nodes[s1]);
+            if (!complete_board.get(s2)) connect(s1, s2, connections);
+            if (!complete_board.get(s1)) connect(s2, s1, connections);
         }
-    }
-
-    JumpGraph::JumpGraph(lczero::BitBoard* our_board,
-                         lczero::BitBoard* their_board) {
-        init_nodes();
-        this->our_board = our_board;
-        this->their_board = their_board;
-        lczero::BitBoard complete_board = *our_board + *their_board;
-        for (lczero::BoardSquare square : *our_board)
-            add_connections_over(square, complete_board, (*our_nodes));
-        their_board->Mirror();
-        complete_board.Mirror();
-        for (lczero::BoardSquare square : *their_board)
-            add_connections_over(square, complete_board, (*their_nodes));
-        their_board->Mirror();
-    }
-
-    void JumpGraph::init_nodes() {
-        for (std::uint8_t i = 0; i < 64; ++i) {
-            _our_nodes[i] = Node(i);
-            _their_nodes[i] = Node(i);
-        }
-        our_nodes = &_our_nodes;
-        their_nodes = &_their_nodes;
     }
 
     /**
@@ -130,10 +111,9 @@ namespace sjadam {
             const int over_col = square.col() + direction.second;
             const lczero::BoardSquare from_square(from_row, from_col);
             if (our_board->get(over_row, over_col)) {
-                (*our_nodes)[from_square.as_int()].connect((*our_nodes)[square.as_int()]);
-            }
-            if (their_board->get(over_row, over_col)) {
-                (*their_nodes)[from_square.as_int()].connect((*their_nodes)[square.as_int()]);
+                connect_ours(from_square.as_int(), square.as_int());
+            } else if (their_board->get(over_row, over_col)) {
+                connect_theirs(from_square.as_int(), square.as_int());
             }
         }
     }
@@ -149,8 +129,8 @@ namespace sjadam {
             const int from_col = square.col() + 2 * direction.second;
             if (!lczero::BoardSquare::IsValid(from_row, from_col)) continue;
             const lczero::BoardSquare from_square(from_row, from_col);
-            (*our_nodes)[from_square.as_int()].disconnect(square.as_int());
-            (*their_nodes)[from_square.as_int()].disconnect(square.as_int());
+            disconnect_ours(from_square.as_int(), square.as_int());
+            disconnect_theirs(from_square.as_int(), square.as_int());
         }
     }
 
@@ -161,15 +141,11 @@ namespace sjadam {
      */
     void JumpGraph::move(const lczero::BoardSquare& from,
                          const lczero::BoardSquare& to) {
-        remove_connections_over(from, *our_nodes);
+        remove_connections_over(from, our_connections);
         const lczero::BitBoard complete_board = *our_board + *their_board;
-        add_connections_over(to, complete_board, *our_nodes);
+        add_connections_over(to, complete_board, our_connections);
         add_connections_to(from);
         remove_connections_to(to);
-    }
-
-    std::uint8_t mirror_square(const std::uint8_t& square) {
-        return static_cast<uint8_t>(square ^ 0b111000);;
     }
 
     /**
@@ -185,22 +161,30 @@ namespace sjadam {
         std::vector<std::list<lczero::BoardSquare>> sources;
         std::vector<std::list<lczero::BoardSquare>> destinations;
         for (lczero::BoardSquare square : *our_board) {
-            const std::list<const Node*>& neighbours = (*our_nodes)[square.as_int()].get_neighbours();
-            for (const Node* n : neighbours) {
-                if (graphs[n->get_square()] == 0) {
+            const int base_index = square.as_int() * 64;
+            for (std::uint8_t sq = 0; sq < 64; ++sq) {
+                if (!our_connections[base_index + sq]) continue;
+                if (graphs[sq] == 0) {
                     // This graph has not been visited
                     ++graph_counter;
                     std::list<lczero::BoardSquare> squares;
-                    std::stack<const Node*> stack;
-                    stack.push(n);
+                    std::stack<std::uint8_t> stack;
+                    stack.push(sq);
                     while (!stack.empty()) {
-                        const Node* top = stack.top();
+                        const std::uint8_t top_sq = stack.top();
                         stack.pop();
-                        if (graphs[top->get_square()] != 0) continue;
-                        squares.emplace_back(top->get_square());
-                        graphs[top->get_square()] = graph_counter;
-                        for (const Node* nn : top->get_neighbours()) { stack.push(nn); }
-                        for (const Node* tn : (*their_nodes)[mirror_square(top->get_square())].get_neighbours()) {
+                        if (graphs[top_sq] != 0) continue;
+                        squares.emplace_back(top_sq);
+                        graphs[top_sq] = graph_counter;
+                        int bi = 64 * top_sq;
+                        for (std::uint8_t n = 0; n < 64; ++n) {
+                            if (our_connections[bi + n]) {
+                                stack.push(n);
+                            }
+                        }
+                        const uint8_t mirror = mirror_square(top_sq);
+                        bi = 64 * mirror;
+                        for (std::uint8_t n = 0; n < 64; ++n) {
                             // One jump over their piece is allowed,
                             // so add the squares connected to this one
                             // through one jump, if the square
@@ -208,18 +192,9 @@ namespace sjadam {
                             // through another node, because then
                             // it will be visited when searching
                             // the graph through another node.
-                            std::uint8_t sq = mirror_square(tn->get_square());
-                            if (!(*our_nodes)[sq].get_neighbours().empty()) {
-                                // The node has neighbours, thus it is
-                                // part of one of our graphs.
-                                // The square is empty,
-                                // (you cannot jump to an occupied square)
-                                // so all outgoing connections
-                                // has a corresponding incoming connection
-                                // from another node in one of our graphs.
-                                continue;
+                            if (their_connections[bi + n]) {
+                                squares.emplace_back(mirror_square(n));
                             }
-                            squares.emplace_back(sq);
                         }
                     }
                     destinations.emplace_back(squares); // Add the destinations for this graph
@@ -228,7 +203,7 @@ namespace sjadam {
                     sources.emplace_back(this_source);
                 } else {
                     // This graph has already been visited
-                    sources[graphs[n->get_square()] - 1].emplace_back(square); // Add this square as a source
+                    sources[graphs[sq] - 1].emplace_back(square); // Add this square as a source
                 };
             }
         }
@@ -241,7 +216,32 @@ namespace sjadam {
 
     void JumpGraph::flip() {
         // Should swap pointers
-        std::swap(our_nodes, their_nodes);
+        std::swap(our_connections, their_connections);
         std::swap(our_board, their_board);
+    }
+
+    void JumpGraph::set_bit_boards(lczero::BitBoard* our_board, lczero::BitBoard* their_board) {
+        this->our_board = our_board;
+        this->their_board = their_board;
+        lczero::BitBoard complete_board = *our_board + *their_board;
+        for (lczero::BoardSquare square : *our_board)
+            add_connections_over(square, complete_board, our_connections);
+        their_board->Mirror();
+        complete_board.Mirror();
+        for (lczero::BoardSquare square : *their_board)
+            add_connections_over(square, complete_board, their_connections);
+        their_board->Mirror();
+    }
+
+    JumpGraph::JumpGraph() {
+        our_connections = static_cast<bool*>(malloc(64 * 64 * sizeof(bool)));
+        their_connections = static_cast<bool*>(malloc(64 * 64 * sizeof(bool)));
+        printf("Allocated connections, ours: %x, theirs: %x\n", our_connections, their_connections);
+    }
+
+    JumpGraph::~JumpGraph() {
+        printf("Freeing connections, ours: %x, theirs: %x\n", our_connections, their_connections);
+        free(our_connections);
+        free(their_connections);
     }
 }

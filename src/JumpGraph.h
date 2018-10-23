@@ -10,48 +10,18 @@
 #include "chess/bitboard.h"
 
 namespace sjadam {
-    class Node {
-    private:
-        std::list<const Node*> neighbours;
-        std::uint8_t square{};
-
-    public:
-        Node() = default;
-
-        explicit Node(const std::uint8_t& square) { this->square = square; }
-
-        bool operator==(const Node& other) const {
-            return square == other.square;
-        }
-
-        std::uint8_t get_square() const { return square; }
-
-        const std::list<const Node*>& get_neighbours() const { return neighbours; }
-
-        void connect(const Node* other);
-
-        void connect(const Node& other) { this->connect(&other); }
-
-        void disconnect(const std::uint8_t& other_square);
-
-        void disconnect(const Node* other);
-
-        void disconnect(const Node& other) { this->disconnect(&other); }
-
-        bool is_connected_to(const Node* other);
-    };
-
     class JumpGraph {
     private:
-        std::array<Node, 64> _our_nodes;
-        std::array<Node, 64> _their_nodes;
-        std::array<Node, 64>* our_nodes;
-        std::array<Node, 64>* their_nodes;
+        bool* our_connections;
+        bool* their_connections;
         lczero::BitBoard* our_board;
         lczero::BitBoard* their_board;
     public:
-        explicit JumpGraph(lczero::BitBoard* our_board,
-                           lczero::BitBoard* their_board);
+        JumpGraph();
+        ~JumpGraph();
+
+        void set_bit_boards(lczero::BitBoard* our_board,
+                            lczero::BitBoard* their_board);
 
         /**
          * Move one of our pieces from one square to another
@@ -76,10 +46,22 @@ namespace sjadam {
         get_source_and_destination_squares();
 
     private:
-        void init_nodes();
-
         void add_connections_to(const lczero::BoardSquare& square);
 
         void remove_connections_to(const lczero::BoardSquare& square);
+
+        void connect_ours(const std::uint8_t& sq1,
+                          const std::uint8_t& sq2);
+
+        void connect_theirs(const std::uint8_t& sq1,
+                            const std::uint8_t& sq2);
+
+        void disconnect_ours(const std::uint8_t& sq1,
+                             const std::uint8_t& sq2);
+
+        void disconnect_theirs(const std::uint8_t& sq1,
+                               const std::uint8_t& sq2);
+
+
     };
 }

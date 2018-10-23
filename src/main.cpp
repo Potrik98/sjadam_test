@@ -3,7 +3,7 @@
 #include "chess/board.h"
 #include "JumpGraph.h"
 
-void print(sjadam::JumpGraph graph) {
+void print(sjadam::JumpGraph& graph) {
     auto sd = graph.get_source_and_destination_squares();
     for (auto p : sd) {
         auto s = p.first;
@@ -25,7 +25,8 @@ int main() {
     chessBoard.SetFromFen(lczero::ChessBoard::kStartingFen);
     lczero::BitBoard white = chessBoard.ours();
     lczero::BitBoard black = chessBoard.theirs();
-    sjadam::JumpGraph graph(&white, &black);
+    sjadam::JumpGraph graph;
+    graph.set_bit_boards(&white, &black);
 
     print(graph);
 
