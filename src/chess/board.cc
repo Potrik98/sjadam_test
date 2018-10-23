@@ -532,10 +532,6 @@ namespace lczero {
             castlings_.reset_we_can_00();
         }
 
-        rooks_.reset(from);
-        bishops_.reset(from);
-        pawns_.reset(from);
-
         // Promotion
         if (to.row() == 7) {
             rooks_.set(to);
@@ -547,6 +543,9 @@ namespace lczero {
         rooks_.set_if(to, rooks_.get(from));
         bishops_.set_if(to, bishops_.get(from));
         pawns_.set_if(to, pawns_.get(from));
+        rooks_.reset(from);
+        bishops_.reset(from);
+        pawns_.reset(from);
 
         // Set en passant flag.
         if (to_row - from_row == 2 && pawns_.get(to)) {
